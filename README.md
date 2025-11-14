@@ -1,9 +1,7 @@
 # PCA-EXP-5-MATRIX-MULTIPLICATION-USING-CUDA-AY-23-24
-<h3>AIM:</h3>
-<h3>ENTER YOUR NAME</h3>
-<h3>ENTER YOUR REGISTER NO</h3>
-<h3>EX. NO</h3>
-<h3>DATE</h3>
+
+<h3>Name: Malar Mariam S</h3>
+<h3>Register Number: 212223230118</h3>
 <h1> <align=center> MATRIX MULTIPLICATION USING CUDA </h3>
   Implement Matrix Multiplication using GPU.</h3>
 
@@ -27,10 +25,69 @@ Google Colab with NVCC Compiler
 12.	Print Result: Print the result matrix and the elapsed time.
 13.	Free Device Memory: Finally, free the device memory that was allocated for the matrices.
 ## PROGRAM:
-TYPE YOUR CODE HERE
+```cpp
+%%cu
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+__global__ void reduce(int *g_in, int *g_out, int n) {
+    extern __shared__ int sdata[];
+    
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    sdata[tid] = (i < n) ? g_in[i] : 0;
+    __syncthreads();
+    
+    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+    
+    if (tid == 0) g_out[blockIdx.x] = sdata[0];
+}
+
+int main() {
+    int n = 1 << 20;  // 1M elements
+    size_t bytes = n * sizeof(int);
+    
+    int *h_in = (int*)malloc(bytes);
+    for (int i = 0; i < n; i++) h_in[i] = 1;  // All 1s for easy verification
+    
+    int block = 256;
+    int grid = (n + block - 1) / block;
+    int *h_out = (int*)malloc(grid * sizeof(int));
+    
+    int *d_in, *d_out;
+    cudaMalloc(&d_in, bytes);
+    cudaMalloc(&d_out, grid * sizeof(int));
+    
+    cudaMemcpy(d_in, h_in, bytes, cudaMemcpyHostToDevice);
+    
+    reduce<<<grid, block, block * sizeof(int)>>>(d_in, d_out, n);
+    
+    cudaMemcpy(h_out, d_out, grid * sizeof(int), cudaMemcpyDeviceToHost);
+    
+    int sum = 0;
+    for (int i = 0; i < grid; i++) sum += h_out[i];
+    
+    printf("Sum: %d (expected %d)\n", sum, n);
+    printf("%s\n", (sum == n) ? "Success!" : "Failed!");
+    
+    cudaFree(d_in); cudaFree(d_out);
+    free(h_in); free(h_out);
+    
+    return 0;
+}
+```
 
 ## OUTPUT:
-SHOW YOUR OUTPUT HERE
+<img width="1191" height="577" alt="image" src="https://github.com/user-attachments/assets/1cc2a92c-7213-4312-a7d6-423bfbb65377" />
+<img width="1648" height="444" alt="image" src="https://github.com/user-attachments/assets/2475cf27-2475-4cdc-9003-16c88daf96a8" />
+
 
 ## RESULT:
 Thus the program has been executed by using CUDA to mulptiply two matrices. It is observed that there are variations in host and device elapsed time. Device took ______________time and host took ___________time.
